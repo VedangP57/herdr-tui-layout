@@ -213,6 +213,7 @@ mods/herdr-tui-layout-help      help                       ┘
 keys.json                       the ctrl-b keys
 extras/claude-usage-hook.sh     optional Claude Code statusLine
 scripts/install.sh              the installer
+scripts/check.sh                herdr-app check + a type check of every mod
 RECIPE.md                       the brief an agent can rebuild it from
 ```
 
@@ -221,11 +222,14 @@ behaviour, the layout tree, and what tripped the build up.
 
 ## Contributing
 
-Bug reports and ideas are welcome: open an issue with a screenshot and, for
-a broken panel, the `herdr-app check` output. Before a change, check each mod
-with `herdr-app check` and type-check it against the `gpui-kit.d.ts` Herdr
-writes beside it: `herdr-app check` renders once without agents, so an error
-in an agent row slips past it.
+Bug reports and ideas are welcome: open an issue (there's a template) with a
+screenshot and, for a broken panel, the `herdr-app check` output. For a
+change, read [CONTRIBUTING.md](CONTRIBUTING.md) and run `./scripts/check.sh`
+before sending it. Security reports: [SECURITY.md](SECURITY.md). Changes per
+release: [CHANGELOG.md](CHANGELOG.md).
+
+If you are an AI agent working on this repository, read [AGENTS.md](AGENTS.md)
+first.
 
 ## License and credits
 

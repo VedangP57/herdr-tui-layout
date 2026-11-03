@@ -1,0 +1,4 @@
+# Written by Herdr beside each mod for editors and type checks; not part of the mod.
+mods/*/gpui-kit.d.ts
+mods/*/jsconfig.json
+.DS_Store
