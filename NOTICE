@@ -1,0 +1,11 @@
+herdr-tui, a layout for the Herdr app. Not affiliated with Herdr.
+
+These mods are modified copies of mods shipped with the Herdr app,
+used under the Apache License 2.0 (see LICENSE); each main.js says
+what changed:
+  mods/herdr-tui-help
+  mods/herdr-tui-menu
+  mods/herdr-tui-new-menu
+  mods/herdr-tui-picker
+  mods/herdr-tui-prompt
+  mods/herdr-tui-worktree
