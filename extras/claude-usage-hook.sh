@@ -1,11 +1,11 @@
 #!/bin/sh
-# Claude Code statusLine command for the herdr-tui layout.
+# Claude Code statusLine command for the herdr-tui-layout layout.
 # Claude Code pipes its status JSON (model, context window, rate limits,
 # session, folder) on stdin each time it redraws. This saves it as
-# ~/.local/state/herdr-tui/claude/<session_id>.json for the sidebar's
+# ~/.local/state/herdr-tui-layout/claude/<session_id>.json for the sidebar's
 # usage line to read, and prints nothing, so Claude Code's own bottom area
 # stays as it is.
-dir="$HOME/.local/state/herdr-tui/claude"
+dir="$HOME/.local/state/herdr-tui-layout/claude"
 mkdir -p "$dir" || exit 0
 tmp=$(mktemp "$dir/.in.XXXXXX") || exit 0
 cat > "$tmp"

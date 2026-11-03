@@ -1,19 +1,19 @@
-# herdr-tui
+# herdr-tui-layout
 
-The terminal herdr's look and keys, inside the Herdr app. A dark coffee-brown
+herdr-tui's look and keys (the terminal herdr), inside herdr-app. A dark coffee-brown
 window in Menlo 12.5: on the left, your spaces grouped by machine, each on one
 line with its git branch and its worktrees on a little tree under it, and your
 agents under them; across the top, one thin line of numbered tabs, the
 focused agent's model and context, your Claude 5-hour and weekly use, and the
 machine and time. Panes are rounded cards with a 1px border that turns orange
-on the one you're typing in. `ctrl-b` drives it like the terminal herdr did.
-A community layout; not affiliated with Herdr.
+on the one you're typing in. `ctrl-b` drives it like herdr-tui does.
+A community layout for herdr-app, not herdr-tui itself; not affiliated with Herdr.
 
-![herdr-tui](preview.png)
+![herdr-tui-layout](preview.png)
 
 ## What you see
 
-The theme is Melange (`themes/herdr-tui.json`): terminal `#292522` on
+The theme is Melange (`themes/herdr-tui-layout.json`): terminal `#292522` on
 `#ECE1D7`; bars and sidebar `#1d1a18`; blocks, tabs and dialogs `#302c28`;
 hover `#3b3531`; selected `#47382b`; borders `#37322f`; accent `#E49B5D`;
 dim text `#867462`. Status colours: working `#EBC06D`, needs you `#D47766`,
@@ -94,41 +94,41 @@ Top to bottom:
 
 ## Built from
 
-- **Layout** (`layouts/herdr-tui.json`): a column (`"resizable": false`, so
+- **Layout** (`layouts/herdr-tui-layout.json`): a column (`"resizable": false`, so
   the top line can't be dragged), `titlebar: "none"`, `traffic_lights`
-  `[14, 14]`, `terminal_menu: "herdr-tui-menu"`, `background: "chrome"`.
-  Children: `tabs` (block, 26px, `herdr-tui-bar`, `window_drag`) and `body`
+  `[14, 14]`, `terminal_menu: "herdr-tui-layout-menu"`, `background: "chrome"`.
+  Children: `tabs` (block, 26px, `herdr-tui-layout-bar`, `window_drag`) and `body`
   (row): `sidebar` (column, 280px, 40–480) holding `side-spaces` and
-  `side-agents` (blocks, weight 1, min 80, both `herdr-tui-side` with
+  `side-agents` (blocks, weight 1, min 80, both `herdr-tui-layout-side` with
   `props.part` `"spaces"` / `"agents"`), and `main` (block, padding
   `[3, 6]`, `{ tab: "active" }` with pane frames: gap 6, radius 6, border
   `border`, focus `accent`, `lone: true`, no header).
-- **herdr-tui-side:** `spaces()`, `agents()`, `machines()`, `setAgentOrder`,
+- **herdr-tui-layout-side:** `spaces()`, `agents()`, `machines()`, `setAgentOrder`,
   `space.select`, `space.move`, `space.new`, `pane.focus`, `layout.resize`
   (fold to 40, unfold to the width it had, kept in `localStorage`),
   `openOverlay`; polls `hc machine ls --json` for connection states; listens
   on `nextCommand()` for `agent-N`, `rename-space`, `new-worktree`.
-- **herdr-tui-bar:** `spaces()`, `layout()` (to match the sidebar's width),
+- **herdr-tui-layout-bar:** `spaces()`, `layout()` (to match the sidebar's width),
   `window()`, `focused()`, `tab.select`, `tab.move`, `openOverlay`; runs
   `hostname -s`, `hc machine ls --json`, and a `sh` loop reading
-  `~/.local/state/herdr-tui/claude/*.json`; starts popups with
+  `~/.local/state/herdr-tui-layout/claude/*.json`; starts popups with
   `hc run --bg --rm` and shows them as dialog overlays holding the terminal;
   listens for `popup-lazygit|btop|yazi`, `rename-tab`, `picker`, `help`.
 - **Copies of Herdr's mods** (Apache-2.0, see NOTICE), each opened with
-  `frame: "none"` and drawing its own rounded box: `herdr-tui-menu` (`menu`),
-  `herdr-tui-prompt` (`prompt`), `herdr-tui-worktree` (`worktree`),
-  `herdr-tui-new-menu` (`new-menu`), `herdr-tui-picker` (`picker`),
-  `herdr-tui-help` (`help`).
+  `frame: "none"` and drawing its own rounded box: `herdr-tui-layout-menu` (`menu`),
+  `herdr-tui-layout-prompt` (`prompt`), `herdr-tui-layout-worktree` (`worktree`),
+  `herdr-tui-layout-new-menu` (`new-menu`), `herdr-tui-layout-picker` (`picker`),
+  `herdr-tui-layout-help` (`help`).
 - **extras/claude-usage-hook.sh**, optional: a Claude Code `statusLine`
   command that saves each session's status JSON to
-  `~/.local/state/herdr-tui/claude/<session_id>.json` and prints nothing.
+  `~/.local/state/herdr-tui-layout/claude/<session_id>.json` and prints nothing.
   Install it with `"statusLine": {"type": "command", "command":
   "<path>/claude-usage-hook.sh"}` in `~/.claude/settings.json`.
 
 ## Watch out
 
 - **What it runs and reads:** `hostname`, `hc machine ls`, `git` (in the
-  worktree dialog), `sh`/`ls`/`stat` over `~/.local/state/herdr-tui/claude/`,
+  worktree dialog), `sh`/`ls`/`stat` over `~/.local/state/herdr-tui-layout/claude/`,
   and lazygit/btop/yazi on their keys. No network.
 - **Without the usage hook** the top line just leaves model, ctx, 5h and
   week out. The hook applies to every Claude Code session on the machine.
@@ -144,7 +144,7 @@ Top to bottom:
   needs a number), and look at the window: `line_height(15)` is fifteen
   times the text size, not 15px.
 - **Saved drags beat the file:** a dragged boundary is kept in
-  `layouts/.state/` and overrides `layouts/herdr-tui.json`.
+  `layouts/.state/` and overrides `layouts/herdr-tui-layout.json`.
 - **Worktree nesting** goes by folder: a space under `~/.herdr/worktrees/<repo>/`
   nests under the space on the same machine whose folder is named `<repo>`.
 - **`ctrl-b`** is taken from programs while this layout shows (shells lose

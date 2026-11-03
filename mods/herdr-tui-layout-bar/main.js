@@ -5,13 +5,13 @@ import { View, div } from "gpui-kit";
 import { h_flex } from "gpui-base";
 import { spaces, run, theme, exec, openOverlay, layout, window, hc, focused, nextCommand, notify } from "herdr";
 
-// herdr-tui's rename dialog (herdr-tui-prompt, which draws its own rounded box)
+// herdr-tui-layout's rename dialog (herdr-tui-layout-prompt, which draws its own rounded box)
 // instead of Herdr's, whose square background pokes out of the app's frame.
 function rename(kind, id) {
   const sp = spaces();
   const target = kind === "space" ? sp.find((s) => s.id === id) : sp.flatMap((s) => s.tabs).find((x) => x.id === id);
   openOverlay({
-    mod: "herdr-tui-prompt", kind: "dialog", frame: "none", width: 400, height: 214,
+    mod: "herdr-tui-layout-prompt", kind: "dialog", frame: "none", width: 400, height: 214,
     props: {
       title: `rename ${kind}`,
       value: target?.named ? target.name : "",
@@ -23,7 +23,7 @@ function rename(kind, id) {
 // What Claude Code reports about each session (model, context, the account's
 // 5-hour and weekly limits), saved by extras/claude-usage-hook.sh (in this layout's repo), its
 // statusLine command. Newest first: "<mtime>\t<json>" per line.
-const USAGE = 'd="$HOME/.local/state/herdr-tui/claude"; for f in $(ls -t "$d"/*.json 2>/dev/null | head -40); do printf "%s\\t" "$(stat -f %m "$f")"; tr -d "\\n" < "$f"; echo; done';
+const USAGE = 'd="$HOME/.local/state/herdr-tui-layout/claude"; for f in $(ls -t "$d"/*.json 2>/dev/null | head -40); do printf "%s\\t" "$(stat -f %m "$f")"; tr -d "\\n" < "$f"; echo; done';
 
 // The old herdr's popup keys (config.toml [[keys.command]] type "popup"):
 // the program in a floating terminal over the tab, gone when it exits.
@@ -79,7 +79,7 @@ export default class TuiBar extends View {
     }).catch(() => {});
     read(cx);
     cx.timer.every(15000, read);
-    // Keys bound to herdr-tui-bar.popup-<name> (keys.json, layout:herdr-tui).
+    // Keys bound to herdr-tui-layout-bar.popup-<name> (keys.json, layout:herdr-tui-layout).
     cx.spawn(async (cx) => {
       for (;;) {
         const c = await nextCommand();
@@ -88,9 +88,9 @@ export default class TuiBar extends View {
         // Herdr's picker opens 640 wide, 40px from the top, 80% of the window tall.
         if (c === "picker") {
           const w = this.size.width, h = Math.round(w * 9 / 16);
-          openOverlay({ mod: "herdr-tui-picker", kind: "popup", frame: "none", width: 640, height: Math.round(h * 0.8), at: { x: Math.round((w - 640) / 2), y: 40 } });
+          openOverlay({ mod: "herdr-tui-layout-picker", kind: "popup", frame: "none", width: 640, height: Math.round(h * 0.8), at: { x: Math.round((w - 640) / 2), y: 40 } });
         }
-        if (c === "help") openOverlay({ mod: "herdr-tui-help", kind: "dialog", frame: "none", width: 560, height: 560 });
+        if (c === "help") openOverlay({ mod: "herdr-tui-layout-help", kind: "dialog", frame: "none", width: 560, height: 560 });
         if (c === "rename-tab") {
           const tab = spaces().find((x) => x.active)?.tabs.find((x) => x.active);
           if (tab) rename("tab", tab.id);
@@ -137,7 +137,7 @@ export default class TuiBar extends View {
     // The bar spans the window, so its width is the window's; the height
     // assumes the window's own shape is the screen's 16:9.
     const w = Math.round(this.size.width * share), h = Math.round(this.size.width * 9 / 16 * share);
-    openOverlay({ kind: "dialog", key: `herdr-tui-popup-${program}`, width: w, height: h, layout: { type: "block", content: { terminal: address } } });
+    openOverlay({ kind: "dialog", key: `herdr-tui-layout-popup-${program}`, width: w, height: h, layout: { type: "block", content: { terminal: address } } });
   }
 
   render() {
@@ -194,7 +194,7 @@ export default class TuiBar extends View {
         .child(div().id("ct-new").h(20).px(9).flex().items_center().rounded(4).text_size(12.5).text_color(t.dim)
           .hover((s) => s.bg(t.hover).text_color(t.foreground))
           .on_mouse_down("left", stop)
-          .on_click(() => openOverlay({ mod: "herdr-tui-new-menu", kind: "popup", frame: "none", width: 250, height: 512 })).child("+"))
+          .on_click(() => openOverlay({ mod: "herdr-tui-layout-new-menu", kind: "popup", frame: "none", width: 250, height: 512 })).child("+"))
         .child(div().flex_1())
         .child(this.usageLine(t))
         .child(div().w(18))

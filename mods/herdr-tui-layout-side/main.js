@@ -5,13 +5,13 @@ import { View, div } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { spaces, agents, machines, run, theme, home, props, setAgentOrder, openOverlay, hc, nextCommand } from "herdr";
 
-// herdr-tui's rename dialog (herdr-tui-prompt, which draws its own rounded box)
+// herdr-tui-layout's rename dialog (herdr-tui-layout-prompt, which draws its own rounded box)
 // instead of Herdr's, whose square background pokes out of the app's frame.
 function rename(kind, id) {
   const sp = spaces();
   const target = kind === "space" ? sp.find((s) => s.id === id) : sp.flatMap((s) => s.tabs).find((x) => x.id === id);
   openOverlay({
-    mod: "herdr-tui-prompt", kind: "dialog", frame: "none", width: 400, height: 214,
+    mod: "herdr-tui-layout-prompt", kind: "dialog", frame: "none", width: 400, height: 214,
     props: {
       title: `rename ${kind}`,
       value: target?.named ? target.name : "",
@@ -57,7 +57,7 @@ export default class TuiSide extends View {
     }).catch(() => {});
     poll(cx);
     cx.timer.every(10000, poll);
-    // Keys bound to herdr-tui-side.<command> (keys.json, layout:herdr-tui).
+    // Keys bound to herdr-tui-layout-side.<command> (keys.json, layout:herdr-tui-layout).
     cx.spawn(async (cx) => {
       for (;;) {
         const c = await nextCommand();
@@ -72,7 +72,7 @@ export default class TuiSide extends View {
         }
         if (c === "new-worktree" && (props()?.part ?? "spaces") === "spaces") {
           const s = spaces().find((x) => x.active);
-          if (s) openOverlay({ mod: "herdr-tui-worktree", kind: "dialog", frame: "none", width: 440, height: 260, props: { space: s.id, action: "new" } });
+          if (s) openOverlay({ mod: "herdr-tui-layout-worktree", kind: "dialog", frame: "none", width: 440, height: 260, props: { space: s.id, action: "new" } });
         }
         cx.notify();
       }
@@ -80,7 +80,7 @@ export default class TuiSide extends View {
   }
 
   menu(s) {
-    openOverlay({ mod: "herdr-tui-menu", kind: "popup", frame: "none", width: 280, height: 260, props: { tab: "space", target: { id: s.id } } });
+    openOverlay({ mod: "herdr-tui-layout-menu", kind: "popup", frame: "none", width: 280, height: 260, props: { tab: "space", target: { id: s.id } } });
   }
 
   setSort(sort, cx) {

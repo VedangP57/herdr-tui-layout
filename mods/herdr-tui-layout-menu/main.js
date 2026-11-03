@@ -1,5 +1,5 @@
 // Modified from Herdr's shipped `menu` mod (Apache-2.0).
-// Changes: draws its own rounded box (opened with frame: "none"); the selection follows the pointer; Rename opens herdr-tui-prompt; Keybinds opens herdr-tui-help; worktree items open herdr-tui-worktree.
+// Changes: draws its own rounded box (opened with frame: "none"); the selection follows the pointer; Rename opens herdr-tui-layout-prompt; Keybinds opens herdr-tui-layout-help; worktree items open herdr-tui-layout-worktree.
 // Context menus (Herdr's items). Opened as a popup with
 // props { tab: "pane" | "tab" | "space" | "global", target }.
 // ↑/↓ move, Enter runs, Esc closes. An item is [label, command, args];
@@ -9,13 +9,13 @@ import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { run, props, closeOverlay, openOverlay, theme, keys, terminals, spaces, panes, exec } from "herdr";
 
-// herdr-tui's rename dialog (herdr-tui-prompt, which draws its own rounded box)
+// herdr-tui-layout's rename dialog (herdr-tui-layout-prompt, which draws its own rounded box)
 // instead of Herdr's, whose square background pokes out of the app's frame.
 function rename(kind, id) {
   const sp = spaces();
   const target = kind === "space" ? sp.find((s) => s.id === id) : sp.flatMap((s) => s.tabs).find((x) => x.id === id);
   openOverlay({
-    mod: "herdr-tui-prompt", kind: "dialog", frame: "none", width: 400, height: 214,
+    mod: "herdr-tui-layout-prompt", kind: "dialog", frame: "none", width: 400, height: 214,
     props: {
       title: `rename ${kind}`,
       value: target?.named ? target.name : "",
@@ -123,8 +123,8 @@ export default class Menu extends View {
     const it = items(props(), this.git)[i];
     if (!it) return;
     closeOverlay(props()?.overlay);
-    if (it[1] === "worktree") openOverlay({ mod: "herdr-tui-worktree", kind: "dialog", frame: "none", ...(it[2].action === "open" ? { width: 560, height: 480 } : { width: 440, height: 260 }), props: it[2] });
-    else if (it[1] === "app.help") openOverlay({ mod: "herdr-tui-help", kind: "dialog", frame: "none", width: 560, height: 560 });
+    if (it[1] === "worktree") openOverlay({ mod: "herdr-tui-layout-worktree", kind: "dialog", frame: "none", ...(it[2].action === "open" ? { width: 560, height: 480 } : { width: 440, height: 260 }), props: it[2] });
+    else if (it[1] === "app.help") openOverlay({ mod: "herdr-tui-layout-help", kind: "dialog", frame: "none", width: 560, height: 560 });
     else if (it[1] === "space.rename" || it[1] === "tab.rename") rename(it[1].split(".")[0], /** @type {{ id: string }} */ (it[2]).id);
     else run(it[1], it[2]);
   }
@@ -135,7 +135,7 @@ export default class Menu extends View {
     return v_flex()
       .id("menu")
       .track_focus(this.handle)
-      // Opened with frame: "none" (herdr-tui's openers and mod.json), so this
+      // Opened with frame: "none" (herdr-tui-layout's openers and mod.json), so this
       // draws the whole box, rounded, with nothing square behind it.
       .size_full()
       .min_h(0)

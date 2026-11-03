@@ -6,7 +6,7 @@
     14,
     14
   ],
-  "theme": "herdr-tui",
+  "theme": "herdr-tui-layout",
   "font": "Menlo",
   "font_size": 12.5,
   "ui_font": "Menlo",
@@ -21,7 +21,7 @@
       "type": "block",
       "window_drag": true,
       "content": {
-        "mod": "herdr-tui-bar"
+        "mod": "herdr-tui-layout-bar"
       },
       "size": {
         "px": 26
@@ -56,7 +56,7 @@
               },
               "min": 80,
               "content": {
-                "mod": "herdr-tui-side",
+                "mod": "herdr-tui-layout-side",
                 "props": {
                   "part": "spaces"
                 }
@@ -70,7 +70,7 @@
               },
               "min": 80,
               "content": {
-                "mod": "herdr-tui-side",
+                "mod": "herdr-tui-layout-side",
                 "props": {
                   "part": "agents"
                 }
@@ -106,7 +106,7 @@
       ]
     }
   ],
-  "terminal_menu": "herdr-tui-menu",
+  "terminal_menu": "herdr-tui-layout-menu",
   "resizable": false,
-  "preview": "layouts/herdr-tui.png"
+  "preview": "layouts/herdr-tui-layout.png"
 }
