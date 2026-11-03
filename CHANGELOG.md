@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **Fixed:** a worktree could sit under the wrong repo, and move when spaces
+  were reordered: nesting matched folder names. It now asks git which repo
+  each space's live folder belongs to.
+- **New:** `▾` / `▸` at the right of a repo's row folds its worktrees.
+
 ## v0.1.0 — 2026-11-03
 
 First release. Built and tested with herdr-app 0.1.12 and hc 0.1.17 on macOS.

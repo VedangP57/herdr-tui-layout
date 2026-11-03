@@ -3,7 +3,7 @@
 // grouped by machine, each with its branch under it; agents needing you first.
 import { View, div } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { spaces, agents, machines, run, theme, home, props, setAgentOrder, openOverlay, hc, nextCommand } from "herdr";
+import { spaces, agents, machines, panes, run, theme, home, props, setAgentOrder, openOverlay, hc, nextCommand, exec } from "herdr";
 
 // herdr-tui-layout's rename dialog (herdr-tui-layout-prompt, which draws its own rounded box)
 // instead of Herdr's, whose square background pokes out of the app's frame.
@@ -46,7 +46,42 @@ export default class TuiSide extends View {
     // whether a layout document arrived.
     this.links = {};
     this.order = [];
+    // Each space's checkout as git reports it, by space id: { top, common }.
+    // A worktree's common dir is its repo's .git, so it nests under the space
+    // holding that repo's main checkout, whatever either folder is called.
+    this.git = {};
+    // Repos (by space id) whose worktrees are folded away, as the old herdr's ▸.
+    try { this.repoShut = new Set(JSON.parse(localStorage.getItem("repoShut") ?? "[]")); } catch { this.repoShut = new Set(); }
     this.tasks(cx);
+  }
+
+  // Where a space is now: its first terminal's live folder, else where it was
+  // made (a space's folder can be stale, and its name can be anything).
+  place(s) {
+    const tabs = new Set(s.tabs.map((x) => x.id));
+    return panes().find((p) => tabs.has(p.tab) && p.cwd)?.cwd || s.folder;
+  }
+
+  // Asks git about every space, one at a time, skipping unreachable machines.
+  async probe(cx) {
+    let changed = false;
+    for (const s of spaces()) {
+      if (s.machine && this.links[s.machine] === "unreachable") continue;
+      const where = this.place(s);
+      if (!where) continue;
+      const opts = { cwd: where, on: s.machine };
+      const top = await exec("git", ["rev-parse", "--show-toplevel"], opts).catch(() => null);
+      const common = await exec("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], opts).catch(() => null);
+      const next = top?.code === 0 && common?.code === 0 ? { top: top.stdout.trim(), common: common.stdout.trim() } : null;
+      if (JSON.stringify(next) !== JSON.stringify(this.git[s.id] ?? null)) { this.git[s.id] = next; changed = true; }
+    }
+    if (changed) cx.notify();
+  }
+
+  foldRepo(id, cx) {
+    if (this.repoShut.has(id)) this.repoShut.delete(id); else this.repoShut.add(id);
+    try { localStorage.setItem("repoShut", JSON.stringify([...this.repoShut])); } catch {}
+    cx.notify();
   }
 
   tasks(cx) {
@@ -57,6 +92,14 @@ export default class TuiSide extends View {
     }).catch(() => {});
     poll(cx);
     cx.timer.every(10000, poll);
+    if ((props()?.part ?? "spaces") === "spaces") {
+      cx.spawn(async (cx) => {
+        for (;;) {
+          await this.probe(cx);
+          await new Promise((done) => cx.timer.after(15000, done));
+        }
+      });
+    }
     // Keys bound to herdr-tui-layout-side.<command> (keys.json, layout:herdr-tui-layout).
     cx.spawn(async (cx) => {
       for (;;) {
@@ -122,8 +165,9 @@ export default class TuiSide extends View {
     const section = (label, right) => h_flex().px(16).pt(14).pb(6).items_center().text_size(12.5).font_bold().text_color(t.dim)
       .child(div().flex_1().child(label.toUpperCase())).when(right != null, (el) => el.child(right));
 
-    // One row per space: a lifted background marks the shown one.
-    const space = (s) => {
+    // One row per space: a lifted background marks the shown one. A repo with
+    // worktrees under it gets ▾ / ▸ at the right end to fold them.
+    const space = (s, kids = 0) => {
       const i = list.indexOf(s);
       return h_flex().id(`cs-${s.id}`).relative().mx(4).pl(8).pr(8).py(3).gap(8).rounded(4).items_center()
       .when(s.active, (el) => el.bg(t.selected))
@@ -153,16 +197,18 @@ export default class TuiSide extends View {
         .child(div().flex_1().min_w(0).truncate().text_color(s.branch ? t.accent : t.dim)
           .child(s.branch ? `⎇ ${s.branch}` : (short(s.folder) || "~") !== s.name ? short(s.folder) : ""))
         .when(s.tabs.length > 1, (el) => el.child(div().flex_none().text_color(t.dim).child(`${s.tabs.length}`))))
-      .when(Boolean(s.status) && s.status !== "idle", (el) => el.child(dot(s.status)));
+      .when(Boolean(s.status) && s.status !== "idle", (el) => el.child(dot(s.status)))
+      .when(kids > 0, (el) => el.child(div().id(`cs-fold-${s.id}`).flex_none().w(14).text_size(12.5).text_color(t.accent)
+        .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+        .on_click((_e, cx) => { cx.stop_propagation(); this.foldRepo(s.id, cx); })
+        .child(this.repoShut.has(s.id) ? "▸" : "▾")));
     };
 
     // Worktrees, as the old herdr drew them: under their repo's space, one
-    // line each on a ├─ / └─ tree. A worktree space is one whose folder is in
-    // ~/.herdr/worktrees/<repo>/, where the shipped worktree mod puts them; its
-    // repo's space is the one (on the same machine) whose folder is named <repo>.
-    const worktrees = `${home()}/.herdr/worktrees/`;
-    const repoOf = (s) => (s.folder?.startsWith(worktrees) ? s.folder.slice(worktrees.length).split("/")[0] : null);
-    const base = (path) => (path ?? "").replace(/\/+$/, "").split("/").pop();
+    // line each on a ├─ / └─ tree. Git decides (see probe): a space is a
+    // worktree when its repo's .git isn't in its own checkout, and it goes
+    // under the space (same machine) whose checkout is that repo's main one.
+    const linked = (s) => { const g = this.git[s.id]; return Boolean(g) && g.common !== `${g.top}/.git`; };
     const ring = (st) => (st === "idle" ? "○" : st ? "●" : "·");
     // The tree is drawn, not typed: ├─ glyphs leave gaps between rows that
     // aren't a terminal's exact cell height. A trunk runs down the left (to
@@ -179,14 +225,17 @@ export default class TuiSide extends View {
       .child(div().flex_1().min_w(0).truncate().text_color(s.active ? t.foreground : t.muted).when(s.active, (el) => el.font_bold())
         .child(s.branch ?? s.name));
     const tree = (own) => {
-      const tops = own.filter((s) => !repoOf(s));
-      const parent = (w) => tops.find((p) => base(p.folder) === repoOf(w));
+      const tops = own.filter((s) => !linked(s));
+      const common = (s) => this.git[s.id]?.common;
+      // The repo's main checkout first; any other space in the same repo after.
+      const parent = (w) => tops.find((p) => common(p) === common(w) && this.git[p.id].top + "/.git" === common(w))
+        ?? tops.find((p) => common(p) === common(w));
       const rows = [];
       for (const s of own) {
-        if (repoOf(s) && parent(s)) continue; // drawn under its repo
-        rows.push(space(s));
-        const kids = repoOf(s) ? [] : own.filter((w) => repoOf(w) && parent(w) === s);
-        kids.forEach((w, i) => rows.push(branchRow(w, i === kids.length - 1)));
+        if (linked(s) && parent(s)) continue; // drawn under its repo
+        const kids = linked(s) ? [] : own.filter((w) => linked(w) && parent(w) === s);
+        rows.push(space(s, kids.length));
+        if (!this.repoShut.has(s.id)) kids.forEach((w, i) => rows.push(branchRow(w, i === kids.length - 1)));
       }
       return rows;
     };

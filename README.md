@@ -17,8 +17,8 @@ Herdr.
 
 - **The sidebar you're used to.** One rounded block per machine (`Local`,
   your SSH machines), each space on one line with its branch in orange
-  (`web ⎇ main`), worktrees drawn as a little tree under their repo,
-  and the tab count at the right. Fold a machine with a click; drag spaces to
+  (`web ⎇ main`), worktrees drawn as a little tree under their repo
+  (fold them with `▾` at the right), and the tab count. Fold a machine with a click; drag spaces to
   reorder them.
 - **Agents under the spaces,** the way herdr-tui lists them: a status mark,
   the space and tab, and what the agent is doing. Sort by `priority` (who
@@ -151,7 +151,7 @@ herdr-app doesn't let layouts make terminal text clickable.
 The guide asks layouts to say this up front. herdr-tui-layout:
 
 - runs `hostname -s` and `hc machine ls --json` (to name and check machines),
-  `git` (in the worktree dialog), `sh`, `ls` and `stat` over
+  `git rev-parse` in each space's folder every 15s (to nest worktrees) and `git` in the worktree dialog, `sh`, `ls` and `stat` over
   `~/.local/state/herdr-tui-layout/claude/` (the usage numbers), and
   lazygit, btop or yazi when you press their keys;
 - reads only that usage folder outside its own;
@@ -193,9 +193,8 @@ The guide asks layouts to say this up front. herdr-tui-layout:
   reports welcome.
 - `ctrl-b` is taken from programs while the layout shows (a shell loses
   ctrl-b for back-a-character).
-- Worktree nesting goes by folder: a space under
-  `~/.herdr/worktrees/<repo>/` nests under the space whose folder is named
-  `<repo>`.
+- Worktree nesting comes from git (each space's live folder, checked every
+  15s), so right after a reload worktrees show flat for a moment.
 
 ## How it's built
 

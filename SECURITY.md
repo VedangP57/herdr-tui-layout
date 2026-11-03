@@ -4,8 +4,7 @@
 
 Herdr mods are trusted code with your user's permissions. herdr-tui-layout:
 
-- runs `hostname -s` and `hc machine ls --json`, `git` (in the worktree
-  dialog), `sh`, `ls` and `stat` over `~/.local/state/herdr-tui-layout/claude/`,
+- runs `hostname -s` and `hc machine ls --json`, `git rev-parse` in each space's folder every 15s (to nest worktrees) and `git` in the worktree dialog, `sh`, `ls` and `stat` over `~/.local/state/herdr-tui-layout/claude/`,
   and lazygit, btop or yazi when you press their keys;
 - reads only that folder outside its own;
 - writes only through Herdr's own commands (spaces, tabs, panes, layout) and

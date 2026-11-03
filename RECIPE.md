@@ -47,9 +47,14 @@ Top to bottom:
      when shown, cut at 150px), its branch in orange as `⎇ main` (or its
      folder, dim, when it has no branch and the folder isn't its name), and
      its tab count at the right when it has more than one tab.
-   - A worktree space (folder in `~/.herdr/worktrees/<repo>/`) sits under its
-     repo's space on a drawn tree: a 1px trunk and a 10px twig, the trunk
-     stopping halfway on the last one, then a status mark and its branch.
+   - A worktree space sits under its repo's space on a drawn tree: a 1px
+     trunk and a 10px twig, the trunk stopping halfway on the last one, then
+     a status mark and its branch. An orange `▾` at the right end of the
+     repo's row folds them to `▸`.
+   - Which repo: git, asked in each space's live folder (its first
+     terminal's `cwd`, else its folder) every 15s: a space is a worktree when
+     `--git-common-dir` isn't its `--show-toplevel`'s `.git`, and it nests
+     under the space holding that repo's main checkout.
 4. **Sidebar, bottom half: agents.** A draggable divider between the halves.
    - Heading `AGENTS` with how many there are (or `2 need you` in red), and
      a `priority` / `spaces` switch.
@@ -127,8 +132,7 @@ Top to bottom:
 
 ## Watch out
 
-- **What it runs and reads:** `hostname`, `hc machine ls`, `git` (in the
-  worktree dialog), `sh`/`ls`/`stat` over `~/.local/state/herdr-tui-layout/claude/`,
+- **What it runs and reads:** `hostname`, `hc machine ls`, `git rev-parse` in each space's folder every 15s (to nest worktrees) and `git` in the worktree dialog, `sh`/`ls`/`stat` over `~/.local/state/herdr-tui-layout/claude/`,
   and lazygit/btop/yazi on their keys. No network.
 - **Without the usage hook** the top line just leaves model, ctx, 5h and
   week out. The hook applies to every Claude Code session on the machine.
@@ -145,8 +149,9 @@ Top to bottom:
   times the text size, not 15px.
 - **Saved drags beat the file:** a dragged boundary is kept in
   `layouts/.state/` and overrides `layouts/herdr-tui-layout.json`.
-- **Worktree nesting** goes by folder: a space under `~/.herdr/worktrees/<repo>/`
-  nests under the space on the same machine whose folder is named `<repo>`.
+- **Worktree nesting** asks git, never names: a space's `folder` can be
+  stale (where it was made) and its name can be anything. An earlier build
+  matched folder names and put one repo's worktree under another repo.
 - **`ctrl-b`** is taken from programs while this layout shows (shells lose
   ctrl-b for back-a-character).
 - The picker's height assumes a 16:9 window. Popup sizes do too.
