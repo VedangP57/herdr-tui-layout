@@ -84,7 +84,6 @@ All on the `ctrl-b` prefix, and only while this layout is showing
 | Keys | Does |
 |---|---|
 | `c` · `n` · `p` | new tab · next tab · previous tab |
-| `1`…`9` | tab 1–9 |
 | `shift-x` · `shift-t` | close tab · rename tab |
 | `shift-1`…`shift-9` | space 1–9 |
 | `shift-n` · `shift-w` · `shift-d` | new space · rename space · close space |

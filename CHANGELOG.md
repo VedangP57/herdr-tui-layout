@@ -6,6 +6,8 @@
   were reordered: nesting matched folder names. It now asks git which repo
   each space's live folder belongs to.
 - **New:** `▾` / `▸` at the right of a repo's row folds its worktrees.
+- **Removed:** `ctrl-b 1`…`9` for tabs; click a tab, or use Herdr's own
+  tab keys.
 
 ## v0.1.0 — 2026-11-03
 

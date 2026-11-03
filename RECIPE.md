@@ -87,7 +87,7 @@ Top to bottom:
   selects; double-click renames; drag a tab onto another to move it. An agent
   row goes to that agent. Right-click a terminal for split, zoom, close.
 - **Keys** (`keys.json`, only while this layout shows; prefix `ctrl-b`):
-  `c` new tab, `n` / `p` next / previous, `1..9` tab N, `shift-x` close tab,
+  `c` new tab, `n` / `p` next / previous, `shift-x` close tab,
   `shift-t` rename tab; `shift-1..9` space N, `shift-n` new space,
   `shift-w` rename space, `shift-d` close space, `w` picker, `shift-g` new
   worktree; `v` split right, `minus` split down, `x` close pane, `z` zoom,
