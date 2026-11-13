@@ -51,6 +51,11 @@ Top to bottom:
      trunk and a 10px twig, the trunk stopping halfway on the last one, then
      a status mark and its branch. An orange `▾` at the right end of the
      repo's row folds them to `▸`.
+   - Under the same repo's space, its local branches as a second drawn tree:
+     one line each, the checked-out branch in accent and the rest muted.
+     Clicking one goes to that branch's worktree space (a shell starts in a
+     bare one), or opens the worktree dialog to create it when it has none;
+     a `main` / `master` nobody is in stays a muted label and does nothing.
    - Which repo: git, asked in each space's live folder (its first
      terminal's `cwd`, else its folder) every 15s: a space is a worktree when
      `--git-common-dir` isn't its `--show-toplevel`'s `.git`, and it nests
@@ -62,6 +67,11 @@ Top to bottom:
      bold, `· <tab name or number>` dim; under it, what the agent's terminal
      is titled (Claude's current task), muted. The agent you're in is on
      `#47382b` with its name orange; one that needs you is tinted red.
+   - Under an agent, its live workers: terminals reporting to its address, one
+     line each on the same tree, behind `▾`/`▸` with how many there are.
+     Clicking one peeks that terminal. A live status terminal with no parent
+     counts as its folder's agent's worker; whatever no folder claims folds
+     under one row at the end.
    - `«` at the bottom right folds the sidebar.
 5. **Folded sidebar, 40px.** Spaces as their number on their machine with a
    status mark (`1○ 2· 3●`), other machines opening with `▾2`, `▾3`; the
@@ -108,7 +118,7 @@ Top to bottom:
   `props.part` `"spaces"` / `"agents"`), and `main` (block, padding
   `[3, 6]`, `{ tab: "active" }` with pane frames: gap 6, radius 6, border
   `border`, focus `accent`, `lone: true`, no header).
-- **herdr-tui-layout-side:** `spaces()`, `agents()`, `machines()`, `setAgentOrder`,
+- **herdr-tui-layout-side:** `spaces()`, `agents()`, `machines()`, `terminals()`, `setAgentOrder`,
   `space.select`, `space.move`, `space.new`, `pane.focus`, `layout.resize`
   (fold to 40, unfold to the width it had, kept in `localStorage`),
   `openOverlay`; polls `hc machine ls --json` for connection states; listens
@@ -132,7 +142,7 @@ Top to bottom:
 
 ## Watch out
 
-- **What it runs and reads:** `hostname`, `hc machine ls`, `git rev-parse` in each space's folder every 15s (to nest worktrees) and `git` in the worktree dialog, `sh`/`ls`/`stat` over `~/.local/state/herdr-tui-layout/claude/`,
+- **What it runs and reads:** `hostname`, `hc machine ls`, `git rev-parse`, `git for-each-ref refs/heads` and `git worktree list --porcelain` in each space's folder every 15s (to nest worktrees and list branches), and `git` in the worktree dialog, `sh`/`ls`/`stat` over `~/.local/state/herdr-tui-layout/claude/`,
   and lazygit/btop/yazi on their keys. No network.
 - **Without the usage hook** the top line just leaves model, ctx, 5h and
   week out. The hook applies to every Claude Code session on the machine.

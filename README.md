@@ -150,7 +150,8 @@ herdr-app doesn't let layouts make terminal text clickable.
 The guide asks layouts to say this up front. herdr-tui-layout:
 
 - runs `hostname -s` and `hc machine ls --json` (to name and check machines),
-  `git rev-parse` in each space's folder every 15s (to nest worktrees) and `git` in the worktree dialog, `sh`, `ls` and `stat` over
+  `git rev-parse`, `git for-each-ref refs/heads` and `git worktree list --porcelain`
+  in each space's folder every 15s (to nest worktrees and list branches) and `git` in the worktree dialog, `sh`, `ls` and `stat` over
   `~/.local/state/herdr-tui-layout/claude/` (the usage numbers), and
   lazygit, btop or yazi when you press their keys;
 - reads only that usage folder outside its own;
