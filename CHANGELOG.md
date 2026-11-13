@@ -8,6 +8,11 @@
 - **New:** `▾` / `▸` at the right of a repo's row folds its worktrees.
 - **Removed:** `ctrl-b 1`…`9` for tabs; click a tab, or use Herdr's own
   tab keys.
+- **New:** each repo's local branches show as a tree under its space, the
+  checked-out one in accent; clicking one goes to its worktree's space, or
+  asks the worktree dialog to make it.
+- **New:** an agent's live workers show under its row behind `▾` / `▸`;
+  clicking one peeks that terminal.
 
 ## v0.1.0 — 2026-11-03
 

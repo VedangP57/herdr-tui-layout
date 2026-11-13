@@ -3,7 +3,7 @@
 // grouped by machine, each with its branch under it; agents needing you first.
 import { View, div } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { spaces, agents, machines, panes, run, theme, home, props, setAgentOrder, openOverlay, hc, nextCommand, exec } from "herdr";
+import { spaces, agents, machines, panes, terminals, run, theme, home, props, setAgentOrder, openOverlay, hc, nextCommand, exec } from "herdr";
 
 // herdr-tui-layout's rename dialog (herdr-tui-layout-prompt, which draws its own rounded box)
 // instead of Herdr's, whose square background pokes out of the app's frame.
@@ -23,6 +23,15 @@ function rename(kind, id) {
 
 
 const RANK = { blocked: 0, done: 1, working: 2, idle: 3 };
+
+// Names of standalone orchestrators to keep out of the worker tree: they sit
+// in an agent's folder and report status, but are nobody's sub-agent. Empty by
+// default; add one if your setup has such a program. Parent-linked terminals
+// ignore this list — an explicit link always wins.
+const NOT_WORKERS = new Set([]);
+// Base branches: clicking a name-only one must not spawn a worktree for
+// them — you merge into them, you don't sit in them.
+const BASE = new Set(["main", "master"]);
 
 function short(path) {
   const h = home();
@@ -50,8 +59,21 @@ export default class TuiSide extends View {
     // A worktree's common dir is its repo's .git, so it nests under the space
     // holding that repo's main checkout, whatever either folder is called.
     this.git = {};
+    // Each main checkout's local branches, by space id: string[]. Worktree
+    // spaces share their repo's refs, so only main checkouts get a list.
+    this.branches = {};
+    // Worktrees on disk of each main checkout's repo, by space id:
+    // [{ branch, path }]. This list is what tells a checked-out branch from
+    // a name-only one.
+    this.worktrees = {};
     // Repos (by space id) whose worktrees are folded away, as the old herdr's ▸.
     try { this.repoShut = new Set(JSON.parse(localStorage.getItem("repoShut") ?? "[]")); } catch { this.repoShut = new Set(); }
+    // Main agents whose live workers are folded away. Workers are terminals
+    // reporting to a parent address; herdr keeps them out of agents().
+    this.agentShut = new Set();
+    // Live status terminals started outside any agent's terminal (automations,
+    // scripts): shown as a foldable group when no agent's folder claims them.
+    this.looseShut = false;
     this.tasks(cx);
   }
 
@@ -73,7 +95,27 @@ export default class TuiSide extends View {
       const top = await exec("git", ["rev-parse", "--show-toplevel"], opts).catch(() => null);
       const common = await exec("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], opts).catch(() => null);
       const next = top?.code === 0 && common?.code === 0 ? { top: top.stdout.trim(), common: common.stdout.trim() } : null;
+      // Local branches of the space's repo (refs/heads only, no remotes),
+      // asked of its main checkout: a worktree shares its repo's refs, so its
+      // branches show under the parent space instead.
+      let brs = null, wts = null;
+      if (next && next.common === `${next.top}/.git`) {
+        const r = await exec("git", ["for-each-ref", "refs/heads", "--format=%(refname:short)"], opts).catch(() => null);
+        brs = r?.code === 0 ? r.stdout.split("\n").filter(Boolean) : null;
+        const w = await exec("git", ["worktree", "list", "--porcelain"], opts).catch(() => null);
+        if (w?.code === 0) {
+          wts = [];
+          let cur = null;
+          for (const line of (w.stdout ?? "").split("\n")) {
+            if (line.startsWith("worktree ")) cur = { path: line.slice(9), branch: null };
+            else if (line.startsWith("branch refs/heads/") && cur) { wts.push({ path: cur.path, branch: line.slice(18) }); }
+            else if (line === "detached") cur = null;
+          }
+        }
+      }
       if (JSON.stringify(next) !== JSON.stringify(this.git[s.id] ?? null)) { this.git[s.id] = next; changed = true; }
+      if (JSON.stringify(brs) !== JSON.stringify(this.branches[s.id] ?? null)) { this.branches[s.id] = brs; changed = true; }
+      if (JSON.stringify(wts) !== JSON.stringify(this.worktrees[s.id] ?? null)) { this.worktrees[s.id] = wts; changed = true; }
     }
     if (changed) cx.notify();
   }
@@ -217,13 +259,57 @@ export default class TuiSide extends View {
     const branchRow = (s, last) => h_flex().id(`cs-${s.id}`).relative().mx(4).h(20).pl(30).pr(8).gap(6).rounded(4).items_center().text_size(12.5)
       .when(s.active, (el) => el.bg(t.selected))
       .when(!s.active, (el) => el.hover((st) => st.bg(t.border)))
-      .on_click(() => run("space.select", { id: s.id }))
+      .on_click(() => {
+        run("space.select", { id: s.id });
+        // A worktree made bare has no tab to land in: start a shell in it.
+        if ((s.tabs ?? []).length === 0) run("tab.new", { space: s.id, folder: s.folder });
+      })
       .on_mouse_down("right", (_e, cx) => { cx.stop_propagation(); this.menu(s); })
       .child(div().absolute().left(14).top(-2).w(1).h(last ? 12 : 22).bg(t.dim))
       .child(div().absolute().left(14).top(10).w(10).h(1).bg(t.dim))
       .child(div().flex_none().text_color(s.status ? tint(s.status) : t.dim).child(ring(s.status)))
       .child(div().flex_1().min_w(0).truncate().text_color(s.active ? t.foreground : t.muted).when(s.active, (el) => el.font_bold())
         .child(s.branch ?? s.name));
+    // The space's repo's local branches, under the space row: one line each
+    // on the same drawn tree. The checked-out branch is the accent one (it
+    // stays on the space's line too); the rest are quiet. Clicking a branch
+    // jumps to its worktree's space (starting a shell when that space is
+    // bare), or has the worktree dialog create that branch's worktree when
+    // it doesn't exist yet.
+    const branchListRow = (s, kid, wt, name, current, i, n) => {
+      // A base branch left as a bare label (the repo's checkout sits on
+      // something else) reads as “at home, waiting” — not as a mistake.
+      const home = BASE.has(name) && !current && !kid && !wt;
+      return h_flex().id(`cl-${s.id}-${name}`).relative().mx(4).h(18).pl(30).pr(8).gap(6).items_center().text_size(12)
+      .cursor_pointer().hover((st) => st.bg(t.hover))
+      .on_click((_e, cx) => {
+        if (kid) {
+          run("space.select", { id: kid.id });
+          if ((kid.tabs ?? []).length === 0) run("tab.new", { space: kid.id, folder: kid.folder });
+        } else if (current || (wt && wt.path === s.folder)) {
+          // This branch IS this workspace's checkout: just go there — a
+          // second space on the same folder would only duplicate it.
+          run("space.select", { id: s.id });
+        } else if (wt) {
+          // The worktree is on disk but has no space yet: open one on it.
+          run("space.new", { folder: wt.path });
+          cx.timer.after(400, () => {
+            const sp = spaces().find((x) => x.folder === wt.path);
+            if (sp) run("space.select", { id: sp.id });
+          });
+        } else if (!BASE.has(name)) {
+          openOverlay({ mod: "herdr-tui-layout-worktree", kind: "dialog", frame: "none", width: 440, height: 260, props: { space: s.id, branch: name } });
+        }
+      })
+      .child(div().absolute().left(14).top(-2).w(1).h(i === n - 1 ? 10 : 20).bg(t.border))
+      .child(div().absolute().left(14).top(8).w(10).h(1).bg(t.border))
+      .child(div().flex_none().text_color(current ? t.accent : wt || kid ? t.muted : t.dim).child(wt || kid || current ? "⎇" : "◇"))
+      .child(div().flex_1().min_w(0).truncate()
+        .when(current, (el) => el.font_bold().text_color(t.accent))
+        .when(!current && (wt || kid), (el) => el.text_color(t.muted))
+        .when(!current && !wt && !kid, (el) => el.italic().text_color(t.dim))
+        .child(home ? `⌂ ${name} · folder in use by ${s.branch ?? "?"}` : name));
+    };
     const tree = (own) => {
       const tops = own.filter((s) => !linked(s));
       const common = (s) => this.git[s.id]?.common;
@@ -236,6 +322,12 @@ export default class TuiSide extends View {
         const kids = linked(s) ? [] : own.filter((w) => linked(w) && parent(w) === s);
         rows.push(space(s, kids.length));
         if (!this.repoShut.has(s.id)) kids.forEach((w, i) => rows.push(branchRow(w, i === kids.length - 1)));
+        const bs = this.branches[s.id];
+        if (bs && bs.length) {
+          const cur = s.branch;
+          const wts = this.worktrees[s.id] ?? [];
+          bs.forEach((b, i) => rows.push(branchListRow(s, kids.find((w) => w.branch === b) ?? null, wts.find((w) => w.branch === b) ?? null, b, b === cur, i, bs.length)));
+        }
       }
       return rows;
     };
@@ -269,7 +361,7 @@ export default class TuiSide extends View {
     // under it what the agent is doing. Every agent here is Claude Code, so
     // the program isn't repeated on each row.
     const mark = (st) => (st === "idle" ? "○" : st ? "●" : "·");
-    const agent = (a) => h_flex().id(`ca-${a.address}`).mx(6).px(8).py(5).gap(7).items_start().rounded(4)
+    const agent = (a, kids = []) => h_flex().id(`ca-${a.address}`).mx(6).px(8).py(5).gap(7).items_start().rounded(4)
       .bg(a.focused ? t.selected : a.status === "blocked" ? t.blocked + "1f" : t.chrome)
       .when(!a.focused, (el) => el.hover((st) => st.bg(t.hover)))
       .on_click(() => { run("space.select", { id: a.space }); run("pane.focus", { pane: a.pane }); })
@@ -278,7 +370,63 @@ export default class TuiSide extends View {
         .child(h_flex().gap(6).text_size(12.5)
           .child(div().flex_shrink(1).min_w(0).truncate().font_bold().text_color(a.focused ? t.accent : t.foreground).child(a.space_name))
           .child(div().flex_none().text_color(t.dim).child(`· ${a.tab_name || a.tab_index}`)))
-        .child(div().truncate().text_size(12.5).text_color(t.muted).child(a.title || "—")));
+        .child(div().truncate().text_size(12.5).text_color(t.muted).child(a.title || "—")))
+      .when(kids.length > 0, (el) => el.child(div().id(`cf-${a.address}`).flex_none().self_start().px(6).rounded(4).text_size(12.5)
+        .text_color(t.dim).hover((st) => st.bg(t.hover).text_color(t.foreground))
+        .on_click((_e, cx) => {
+          cx.stop_propagation();
+          if (this.agentShut.has(a.address)) this.agentShut.delete(a.address); else this.agentShut.add(a.address);
+          cx.notify();
+        })
+        .child(this.agentShut.has(a.address) ? `▸${kids.length}` : `▾${kids.length}`)));
+
+    // Live workers of a main agent: terminals reporting to its address. A
+    // worker without a pane isn't in agents() — its raw status word stands
+    // in, error counting as blocked and done as idle (a worker reports to
+    // its parent; the parent's done is the news). A row peeks the worker.
+    const terms = terminals();
+    const subs = (addr) => terms.filter((k) => k.parent === addr && k.state === "live");
+    // Workers started outside any agent's terminal (automations, scripts,
+    // other sessions) carry no parent, so herdr can't say whose they are. A
+    // live status terminal in an agent's own folder is taken as that agent's
+    // worker; whatever no folder claims goes under a fold at the end.
+    const claimed = new Set(ags.flatMap((a) => [a.address, ...subs(a.address).map((k) => k.address)]));
+    const loose = terms.filter((k) => k.state === "live" && k.status && !k.parent && !claimed.has(k.address)
+      && !NOT_WORKERS.has(k.name));
+    const folderOf = (a) => list.find((s) => s.id === a.space)?.folder ?? "";
+    const extra = new Map();
+    // Two agents can share a folder (a second terminal opened on it): the
+    // folder's workers attach to the earlier tab's agent once, not to each
+    // of them.
+    const owner = new Map();
+    for (const a of ags) {
+      const f = folderOf(a);
+      if (!f) continue;
+      const cur = owner.get(f);
+      if (!cur || a.tab_index < cur.tab_index
+        || (a.tab_index === cur.tab_index && a.address < cur.address)) owner.set(f, a);
+    }
+    const taken = new Set();
+    for (const a of ags) {
+      if (owner.get(folderOf(a))?.address !== a.address) continue;
+      const f = folderOf(a);
+      const m = loose.filter((k) => (k.cwd ?? "") === f || (k.cwd ?? "").startsWith(f + "/"));
+      m.forEach((k) => taken.add(k.address));
+      if (m.length) extra.set(a.address, m);
+    }
+    const looseRest = loose.filter((k) => !taken.has(k.address));
+    const kidRow = (k, last) => {
+      const st = k.status === "error" ? "blocked" : k.status === "done" ? "idle" : (k.status || "");
+      const name = k.name || k.template || k.program?.name || k.address;
+      return h_flex().id(`ck-${k.address}`).relative().mx(6).pl(30).pr(8).py(2).gap(7).items_center().rounded(4)
+        .hover((s) => s.bg(t.hover))
+        .on_click(() => run("terminal.peek", { terminal: k.address }))
+        .child(div().absolute().left(16).top(-3).w(1).h(last ? 11 : 21).bg(t.border))
+        .child(div().absolute().left(16).top(8).w(12).h(1).bg(t.border))
+        .child(dot(st, 7))
+        .child(div().flex_1().min_w(0).truncate().text_size(12).text_color(t.muted).child(name))
+        .child(div().flex_none().text_size(12).text_color(tint(st)).child(mark(st)));
+    };
 
     const waiting = ags.filter((a) => a.status === "blocked").length;
     const part = props()?.part ?? "spaces";
@@ -329,7 +477,17 @@ export default class TuiSide extends View {
             .on_click((_e, cx) => this.setSort(this.sort === "priority" ? "spaces" : "priority", cx)).child(this.sort))))
         .when(ags.length === 0, (el) => el.child(div().px(16).py(6).text_size(12.5).text_color(t.dim)
           .child("No agents here yet. Start one with + in the tab bar.")))
-        .children(ags.map(agent)))
+        .children(ags.flatMap((a) => {
+          const kids = [...subs(a.address), ...(extra.get(a.address) ?? [])];
+          const shown = this.agentShut.has(a.address) ? [] : kids;
+          return [agent(a, kids), ...shown.map((k, i) => kidRow(k, i === shown.length - 1))];
+        }))
+        .when(looseRest.length > 0, (el) => el.child(v_flex()
+          .child(h_flex().mx(6).px(8).py(3).gap(6).items_center().rounded(4).text_size(12)
+            .child(div().flex_1().text_color(t.dim).child(`workers elsewhere · ${looseRest.length}`))
+            .child(div().id("cw-loose").px(6).rounded(4).text_color(t.dim).hover((st) => st.bg(t.hover).text_color(t.foreground))
+              .on_click((_e, cx) => { this.looseShut = !this.looseShut; cx.notify(); }).child(this.looseShut ? "▸" : "▾")))
+          .when(!this.looseShut, (el) => el.children(looseRest.map((k, i) => kidRow(k, i === looseRest.length - 1)))))))
       .child(h_flex().flex_none().px(8).py(4).justify_end().child(chevron("cs-fold", "«", () => this.fold())));
   }
 }
